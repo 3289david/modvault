@@ -9,9 +9,11 @@ import {
   NeoForgeLoaderIcon,
   QuiltLoaderIcon,
   PlayIcon,
-  LoaderSpinIcon
+  LoaderSpinIcon,
+  SettingsIcon
 } from '../../icons'
 import { useStore } from '../../store'
+import { InstanceSettings } from './InstanceSettings'
 import type { Instance, LoaderType } from '@shared/types'
 
 function LoaderIconBig({ loader }: { loader: LoaderType }) {
@@ -48,7 +50,10 @@ interface InstanceCardProps {
 
 export function InstanceCard({ instance, active, onSelect, onDeleted }: InstanceCardProps) {
   const [deleting, setDeleting] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
+  const [localInstance, setLocalInstance] = useState(instance)
   const removeInstance = useStore((s) => s.removeInstance)
+  const upsertInstance = useStore((s) => s.upsertInstance)
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -123,6 +128,13 @@ export function InstanceCard({ instance, active, onSelect, onDeleted }: Instance
             Open Folder
           </button>
           <button
+            onClick={(e) => { e.stopPropagation(); setShowSettings(true) }}
+            className="btn-ghost py-1.5 px-2 text-xs"
+            title="Instance settings"
+          >
+            <SettingsIcon size={13} />
+          </button>
+          <button
             onClick={handleDelete}
             disabled={deleting}
             className="btn-danger py-1.5 px-3 text-xs"
@@ -131,6 +143,16 @@ export function InstanceCard({ instance, active, onSelect, onDeleted }: Instance
           </button>
         </div>
       </div>
+      {showSettings && (
+        <InstanceSettings
+          instance={localInstance}
+          onClose={() => setShowSettings(false)}
+          onUpdated={(updated) => {
+            setLocalInstance(updated)
+            upsertInstance(updated)
+          }}
+        />
+      )}
     </div>
   )
 }
