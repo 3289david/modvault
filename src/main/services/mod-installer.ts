@@ -61,8 +61,6 @@ export async function installMod(
   const instance = instanceManager.getById(params.instanceId)
   if (!instance) throw new Error('Instance not found')
 
-  const settings = store.getSettings()
-
   sendProgress(win, {
     modId: params.modId,
     fileName: 'Fetching version info...',
@@ -91,7 +89,6 @@ export async function installMod(
   } else {
     const versions = await getCurseForgeVersions(
       params.modId,
-      settings.curseforgeApiKey,
       instance.loader,
       instance.minecraftVersion
     )

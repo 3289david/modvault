@@ -91,26 +91,22 @@ export function Settings() {
             API Keys
           </h2>
 
-          <div>
-            <label className="text-xs font-medium text-zinc-400 mb-1.5 flex items-center justify-between">
-              <span>CurseForge API Key</span>
-              <button
-                onClick={() => window.api.openExternal('https://console.curseforge.com')}
-                className="text-violet-400 hover:text-violet-300 flex items-center gap-1 text-[11px] font-normal"
-              >
-                Get API Key <ExternalLinkIcon size={10} />
-              </button>
-            </label>
-            <input
-              className="input text-xs font-mono"
-              type="password"
-              value={form.curseforgeApiKey ?? ''}
-              onChange={(e) => setForm((f) => ({ ...f, curseforgeApiKey: e.target.value }))}
-              placeholder="$2a$10$..."
-            />
-            <p className="text-[11px] text-zinc-600 mt-1.5">
-              Required for CurseForge mod search. Modrinth works without a key.
-            </p>
+          <div className="flex items-center gap-3 py-2">
+            <div className="flex-1">
+              <div className="text-xs font-medium text-zinc-300 flex items-center gap-2">
+                CurseForge API Key
+                <span className="badge-emerald text-[10px]">
+                  <CheckIcon size={9} />
+                  Configured
+                </span>
+              </div>
+              <p className="text-[11px] text-zinc-600 mt-1">
+                Built into this build. CurseForge search is fully enabled.
+              </p>
+            </div>
+            <div className="text-xs font-mono text-zinc-700 bg-zinc-900 px-3 py-1.5 rounded-lg border border-zinc-800 select-none">
+              ••••••••••••••••
+            </div>
           </div>
         </section>
 

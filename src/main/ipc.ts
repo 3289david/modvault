@@ -4,7 +4,7 @@ import * as instanceManager from './services/instance-manager'
 import { detectConflicts } from './services/conflict-detector'
 import { analyzeCrashLog } from './services/crash-analyzer'
 import { searchModrinth, getModrinthVersions } from './services/modrinth-api'
-import { searchCurseForge, getCurseForgeVersions } from './services/curseforge-api'
+import { searchCurseForge, getCurseForgeVersions, isCurseForgeConfigured } from './services/curseforge-api'
 import {
   installMod,
   uninstallMod,
@@ -59,19 +59,17 @@ export function registerIpcHandlers(getWindow: () => BrowserWindow | null) {
   // Search
   ipcMain.handle('search:modrinth', (_, params) => searchModrinth(params))
 
-  ipcMain.handle('search:curseforge', (_, params) => {
-    const settings = store.getSettings()
-    return searchCurseForge(params, settings.curseforgeApiKey)
-  })
+  ipcMain.handle('search:curseforge', (_, params) => searchCurseForge(params))
 
   ipcMain.handle('versions:modrinth', (_, projectId, loader, mcVersion) =>
     getModrinthVersions(projectId, loader, mcVersion)
   )
 
-  ipcMain.handle('versions:curseforge', (_, modId, loader, mcVersion) => {
-    const settings = store.getSettings()
-    return getCurseForgeVersions(modId, settings.curseforgeApiKey, loader, mcVersion)
-  })
+  ipcMain.handle('versions:curseforge', (_, modId, loader, mcVersion) =>
+    getCurseForgeVersions(modId, loader, mcVersion)
+  )
+
+  ipcMain.handle('curseforge:is-configured', () => isCurseForgeConfigured())
 
   // Analysis
   ipcMain.handle('analysis:conflicts', (_, instanceId) => {

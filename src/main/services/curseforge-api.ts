@@ -5,13 +5,14 @@ const BASE_URL = 'https://api.curseforge.com/v1'
 const MINECRAFT_GAME_ID = 432
 const MODS_CLASS_ID = 6
 
-function makeClient(apiKey: string) {
-  return axios.create({
-    baseURL: BASE_URL,
-    headers: { 'x-api-key': apiKey, 'Accept': 'application/json' },
-    timeout: 15000
-  })
-}
+// API key is injected at build time from .env via Vite define — never in source/git
+const CF_KEY: string = typeof __CF_API_KEY__ !== 'undefined' ? __CF_API_KEY__ : ''
+
+const client = axios.create({
+  baseURL: BASE_URL,
+  headers: { 'x-api-key': CF_KEY, 'Accept': 'application/json' },
+  timeout: 15000
+})
 
 const CF_CATEGORIES: Record<string, number> = {
   Performance: 435,
@@ -24,15 +25,9 @@ const CF_CATEGORIES: Record<string, number> = {
   Decoration: 424
 }
 
-export async function searchCurseForge(
-  params: SearchParams,
-  apiKey: string
-): Promise<SearchResult> {
-  if (!apiKey) {
-    return { hits: [], total: 0, offset: 0, limit: 20 }
-  }
+export async function searchCurseForge(params: SearchParams): Promise<SearchResult> {
+  if (!CF_KEY) return { hits: [], total: 0, offset: 0, limit: 20 }
 
-  const client = makeClient(apiKey)
   const query: Record<string, unknown> = {
     gameId: MINECRAFT_GAME_ID,
     classId: MODS_CLASS_ID,
@@ -57,7 +52,6 @@ export async function searchCurseForge(
   const data = resp.data
 
   const hits: ModSearchHit[] = (data.data ?? []).map((m: Record<string, unknown>) => {
-    const links = m.links as Record<string, string>
     const logo = m.logo as Record<string, string> | null
     const authors = m.authors as Array<Record<string, string>>
     const latestFiles = m.latestFilesIndexes as Array<Record<string, unknown>>
@@ -89,12 +83,10 @@ export async function searchCurseForge(
 
 export async function getCurseForgeVersions(
   modId: string,
-  apiKey: string,
   loader?: string,
   mcVersion?: string
 ): Promise<ModVersion[]> {
-  if (!apiKey) return []
-  const client = makeClient(apiKey)
+  if (!CF_KEY) return []
 
   const params: Record<string, unknown> = {}
   if (mcVersion) params.gameVersion = mcVersion
@@ -123,13 +115,15 @@ export async function getCurseForgeVersions(
     ],
     dependencies: ((f.dependencies as Array<Record<string, unknown>>) ?? [])
       .filter((d) => d.relationType === 3)
-      .map((d) => ({
-        id: String(d.modId),
-        required: true
-      })),
+      .map((d) => ({ id: String(d.modId), required: true })),
     releaseType:
       f.releaseType === 1 ? 'release' : f.releaseType === 2 ? 'beta' : 'alpha',
     datePublished: f.fileDate as string,
     downloads: f.downloadCount as number
   }))
+}
+
+/** Returns true if the API key is configured */
+export function isCurseForgeConfigured(): boolean {
+  return CF_KEY.length > 0
 }
