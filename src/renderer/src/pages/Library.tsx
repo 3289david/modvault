@@ -18,12 +18,15 @@ import {
   FolderIcon,
   GitBranchIcon,
   ListIcon,
-  ZapIcon
+  ZapIcon,
+  DownloadIcon
 } from '../icons'
 import { DependencyGraph } from '../components/mods/DependencyGraph'
+import { ModpackImportModal } from '../components/mods/ModpackImportModal'
 import { useStore, selectActiveInstance, selectInstalledMods, selectConflicts } from '../store'
 import { useInstalledMods, useConflicts } from '../hooks/useElectron'
 import type { InstalledMod, Conflict } from '@shared/types'
+import { MOD_CATEGORIES } from '@shared/types'
 
 function ConflictBadge({ conflicts, modId }: { conflicts: Conflict[]; modId: string }) {
   const relevant = conflicts.filter((c) => c.mod1Id === modId || c.mod2Id === modId)
@@ -140,12 +143,21 @@ export function Library() {
   const [activeTab, setActiveTab] = useState<'mods' | 'graph'>('mods')
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<'all' | 'enabled' | 'disabled' | 'conflicting'>('all')
+  const [categoryFilter, setCategoryFilter] = useState('')
   const [applyingToMc, setApplyingToMc] = useState(false)
   const [togglingId, setTogglingId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [importing, setImporting] = useState(false)
+  const [showModpackImport, setShowModpackImport] = useState(false)
 
   const conflictModIds = new Set(conflicts.flatMap((c) => [c.mod1Id, c.mod2Id]))
+
+  // Compute categories that actually appear in the installed mods
+  const presentCategories = useMemo(() => {
+    const cats = new Set<string>()
+    installedMods.forEach((m) => m.categories.forEach((c) => cats.add(c)))
+    return MOD_CATEGORIES.filter((c) => cats.has(c))
+  }, [installedMods])
 
   const filtered = useMemo(() => {
     let mods = installedMods
@@ -158,8 +170,9 @@ export function Library() {
     if (filter === 'enabled') mods = mods.filter((m) => m.enabled)
     if (filter === 'disabled') mods = mods.filter((m) => !m.enabled)
     if (filter === 'conflicting') mods = mods.filter((m) => conflictModIds.has(m.id))
+    if (categoryFilter) mods = mods.filter((m) => m.categories.includes(categoryFilter))
     return mods
-  }, [installedMods, search, filter, conflictModIds])
+  }, [installedMods, search, filter, categoryFilter, conflictModIds])
 
   const handleToggle = async (mod: InstalledMod) => {
     setTogglingId(mod.fileId)
@@ -230,10 +243,14 @@ export function Library() {
   }
 
   return (
+    <>
+    {showModpackImport && (
+      <ModpackImportModal onClose={() => setShowModpackImport(false)} />
+    )}
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Toolbar */}
       <div className="shrink-0 border-b border-zinc-800/60 p-4">
-        {/* Tab switcher */}
+        {/* Tab switcher + actions */}
         <div className="flex items-center gap-1 mb-3">
           <button
             onClick={() => setActiveTab('mods')}
@@ -257,7 +274,15 @@ export function Library() {
             <GitBranchIcon size={12} />
             Dependencies
           </button>
-          <div className="ml-auto">
+          <div className="ml-auto flex gap-2">
+            <button
+              onClick={() => setShowModpackImport(true)}
+              className="btn-ghost py-1.5 px-3 text-xs"
+              title="Import a modpack (.mrpack or .zip)"
+            >
+              <DownloadIcon size={13} />
+              Import Pack
+            </button>
             <button
               onClick={handleApplyToMinecraft}
               disabled={applyingToMc || installedMods.length === 0}
@@ -281,7 +306,7 @@ export function Library() {
             />
           </div>
 
-          <div className="flex gap-1">
+          <div className="flex gap-1 flex-wrap">
             {(['all', 'enabled', 'disabled', 'conflicting'] as const).map((f) => (
               <button
                 key={f}
@@ -315,6 +340,36 @@ export function Library() {
             </button>
           </div>
         </div>
+
+        {/* Category filter chips (only shown if mods have categories) */}
+        {presentCategories.length > 0 && (
+          <div className="flex items-center gap-1.5 mt-3 flex-wrap">
+            <span className="text-[10px] text-zinc-600 shrink-0">Category:</span>
+            <button
+              onClick={() => setCategoryFilter('')}
+              className={`px-2.5 py-1 rounded-full text-[10px] font-medium transition-all ${
+                categoryFilter === ''
+                  ? 'bg-violet-500/20 text-violet-300 border border-violet-500/30'
+                  : 'text-zinc-500 hover:text-zinc-300 border border-zinc-800 hover:border-zinc-700'
+              }`}
+            >
+              All
+            </button>
+            {presentCategories.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setCategoryFilter(cat === categoryFilter ? '' : cat)}
+                className={`px-2.5 py-1 rounded-full text-[10px] font-medium transition-all ${
+                  categoryFilter === cat
+                    ? 'bg-violet-500/20 text-violet-300 border border-violet-500/30'
+                    : 'text-zinc-600 hover:text-zinc-300 border border-zinc-800 hover:border-zinc-700'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Conflicts panel */}
@@ -393,5 +448,6 @@ export function Library() {
         </div>
       </div>}
     </div>
+    </>
   )
 }

@@ -10,7 +10,9 @@ import {
   FabricLoaderIcon,
   ForgeLoaderIcon,
   NeoForgeLoaderIcon,
-  PackageIcon
+  PackageIcon,
+  AlertTriangleIcon,
+  CheckIcon
 } from '../../icons'
 import { useStore, selectActiveInstance } from '../../store'
 import type { ModSearchHit, LoaderType } from '@shared/types'
@@ -45,9 +47,20 @@ interface ModCardProps {
 export function ModCard({ mod, installedFileIds }: ModCardProps) {
   const [installing, setInstalling] = useState(false)
   const activeInstance = useStore(selectActiveInstance)
+  const installedMods = useStore((s) =>
+    activeInstance ? (s.installedMods[activeInstance.id] ?? []) : []
+  )
   const addInstalledMod = useStore((s) => s.addInstalledMod)
 
-  const isInstalled = installedFileIds?.has(mod.id)
+  const isInstalled =
+    installedFileIds?.has(mod.id) ||
+    installedMods.some((m) => m.projectId === mod.id)
+
+  // Loader incompatibility check
+  const loaderIncompat =
+    activeInstance &&
+    mod.loaders.length > 0 &&
+    !mod.loaders.includes(activeInstance.loader)
 
   const handleInstall = async () => {
     if (!activeInstance) {
@@ -72,6 +85,7 @@ export function ModCard({ mod, installedFileIds }: ModCardProps) {
     }
   }
 
+
   const openPage = () => {
     const url =
       mod.source === 'modrinth'
@@ -81,7 +95,17 @@ export function ModCard({ mod, installedFileIds }: ModCardProps) {
   }
 
   return (
-    <div className="card-hover group flex flex-col overflow-hidden animate-fade-in">
+    <div className={`card-hover group flex flex-col overflow-hidden animate-fade-in ${loaderIncompat ? 'ring-1 ring-amber-500/20' : ''}`}>
+      {/* Loader incompatibility warning bar */}
+      {loaderIncompat && (
+        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 border-b border-amber-500/15">
+          <AlertTriangleIcon size={11} className="text-amber-400 shrink-0" />
+          <span className="text-[10px] text-amber-300">
+            No {activeInstance.loader} support
+          </span>
+        </div>
+      )}
+
       {/* Icon + Header */}
       <div className="flex items-start gap-3 p-4">
         <div className="w-12 h-12 rounded-lg bg-zinc-800 border border-zinc-700 shrink-0 overflow-hidden flex items-center justify-center">
@@ -172,7 +196,7 @@ export function ModCard({ mod, installedFileIds }: ModCardProps) {
             {installing ? (
               <LoaderSpinIcon size={12} />
             ) : isInstalled ? (
-              'Installed'
+              <><CheckIcon size={12} />Installed</>
             ) : (
               <>
                 <DownloadIcon size={12} />

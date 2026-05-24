@@ -16,6 +16,8 @@ import { detectJava } from './services/java-manager'
 import { getReleaseVersions, getLoaderVersions } from './services/version-manager'
 import { launchInstance, stopInstance, isRunning, getRunningIds } from './services/minecraft-launcher'
 import { installLoader } from './services/loader-installer'
+import { getMissingDeps } from './services/dependency-resolver'
+import { importModpack } from './services/modpack-importer'
 import * as fs from 'fs'
 import * as path from 'path'
 
@@ -58,6 +60,35 @@ export function registerIpcHandlers(getWindow: () => BrowserWindow | null) {
     if (result.canceled || !result.filePaths[0]) return null
     return importLocalMod(instanceId, result.filePaths[0])
   })
+
+  // Import ALL JARs from a selected folder into an instance
+  ipcMain.handle('mods:import-folder', async (_, instanceId: string) => {
+    const result = await dialog.showOpenDialog(getWindow()!, {
+      title: 'Select Mods Folder to Import',
+      properties: ['openDirectory']
+    })
+    if (result.canceled || !result.filePaths[0]) return []
+
+    const folder = result.filePaths[0]
+    const jarFiles = fs.readdirSync(folder).filter((f) => f.endsWith('.jar'))
+    const results: Awaited<ReturnType<typeof importLocalMod>>[] = []
+
+    for (const file of jarFiles) {
+      try {
+        const mod = await importLocalMod(instanceId, path.join(folder, file))
+        results.push(mod)
+      } catch (e) {
+        console.warn('[ipc] skipped JAR during folder import:', file, e)
+      }
+    }
+    instanceManager.refreshModCount(instanceId)
+    return results
+  })
+
+  // Check missing Modrinth dependencies for an installed version
+  ipcMain.handle('mods:check-deps', (_, instanceId: string, versionId: string) =>
+    getMissingDeps(instanceId, versionId)
+  )
 
   // Apply instance mods to .minecraft/mods
   ipcMain.handle('mods:apply-to-minecraft', async (_, instanceId) => {
@@ -161,6 +192,24 @@ export function registerIpcHandlers(getWindow: () => BrowserWindow | null) {
   ipcMain.handle('launch:stop', (_, instanceId: string) => stopInstance(instanceId))
   ipcMain.handle('launch:is-running', (_, instanceId: string) => isRunning(instanceId))
   ipcMain.handle('launch:running-ids', () => getRunningIds())
+
+  // ── Modpack import ─────────────────────────────────────────────────────────
+  ipcMain.handle('modpack:import', async (_, filePath: string) => {
+    const instanceId = await importModpack(filePath, getWindow())
+    const instance = instanceManager.getById(instanceId)
+    return instance
+  })
+
+  ipcMain.handle('modpack:pick-file', async () => {
+    const result = await dialog.showOpenDialog(getWindow()!, {
+      title: 'Select Modpack',
+      filters: [
+        { name: 'Modpack', extensions: ['mrpack', 'zip'] }
+      ],
+      properties: ['openFile']
+    })
+    return result.canceled ? null : result.filePaths[0]
+  })
 
   // ── System ─────────────────────────────────────────────────────────────────
   ipcMain.handle('system:open-external', (_, url) => shell.openExternal(url))

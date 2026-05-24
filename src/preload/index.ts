@@ -15,7 +15,9 @@ import type {
   LaunchProgress,
   GameLogEntry,
   MinecraftVersion,
-  LoaderVersionInfo
+  LoaderVersionInfo,
+  DepInfo,
+  ImportProgress
 } from '../shared/types'
 
 const api = {
@@ -52,6 +54,10 @@ const api = {
     ipcRenderer.invoke('mods:toggle', instanceId, fileId, enabled),
   importLocalMod: (instanceId: string): Promise<InstalledMod | null> =>
     ipcRenderer.invoke('mods:import-local', instanceId),
+  importFromFolder: (instanceId: string): Promise<InstalledMod[]> =>
+    ipcRenderer.invoke('mods:import-folder', instanceId),
+  checkModDeps: (instanceId: string, versionId: string): Promise<DepInfo[]> =>
+    ipcRenderer.invoke('mods:check-deps', instanceId, versionId),
   applyToMinecraft: (instanceId: string): Promise<{ copied: number; targetDir: string }> =>
     ipcRenderer.invoke('mods:apply-to-minecraft', instanceId),
 
@@ -109,6 +115,12 @@ const api = {
     ipcRenderer.invoke('launch:is-running', instanceId),
   getRunningInstances: (): Promise<string[]> => ipcRenderer.invoke('launch:running-ids'),
 
+  // ── Modpack import ────────────────────────────────────────────────────────────
+  pickModpackFile: (): Promise<string | null> =>
+    ipcRenderer.invoke('modpack:pick-file'),
+  importModpack: (filePath: string): Promise<Instance | null> =>
+    ipcRenderer.invoke('modpack:import', filePath),
+
   // ── System ────────────────────────────────────────────────────────────────────
   openExternal: (url: string) => ipcRenderer.invoke('system:open-external', url),
   openPath: (p: string) => ipcRenderer.invoke('system:open-path', p),
@@ -141,6 +153,11 @@ const api = {
     const h = (_: unknown, d: { instanceId: string; code: number }) => cb(d)
     ipcRenderer.on('game-closed', h)
     return () => ipcRenderer.removeListener('game-closed', h)
+  },
+  onModpackProgress: (cb: (p: ImportProgress) => void) => {
+    const h = (_: unknown, p: ImportProgress) => cb(p)
+    ipcRenderer.on('modpack-progress', h)
+    return () => ipcRenderer.removeListener('modpack-progress', h)
   }
 }
 

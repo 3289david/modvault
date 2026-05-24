@@ -10,10 +10,12 @@ import {
   PackageIcon,
   StarIcon,
   RefreshIcon,
-  GitBranchIcon
+  GitBranchIcon,
+  AlertTriangleIcon
 } from '../../icons'
 import { useStore, selectActiveInstance } from '../../store'
-import type { ModSearchHit, ModVersion, LoaderType } from '@shared/types'
+import { DepsPrompt } from './DepsPrompt'
+import type { ModSearchHit, ModVersion, LoaderType, DepInfo } from '@shared/types'
 
 function VersionRow({
   version,
@@ -66,14 +68,33 @@ export function ModDetailPanel({ mod, onClose }: Props) {
   const [loadingVersions, setLoadingVersions] = useState(false)
   const [installingVersionId, setInstallingVersionId] = useState<string | null>(null)
   const [showAllVersions, setShowAllVersions] = useState(false)
+  const [missingDeps, setMissingDeps] = useState<DepInfo[]>([])
+  const [showDeps, setShowDeps] = useState(false)
+  const [similar, setSimilar] = useState<ModSearchHit[]>([])
 
   const activeInstance = useStore(selectActiveInstance)
+  const installedMods = useStore((s) =>
+    activeInstance ? (s.installedMods[activeInstance.id] ?? []) : []
+  )
   const addInstalledMod = useStore((s) => s.addInstalledMod)
+
+  // Loader incompatibility warning
+  const loaderIncompat =
+    activeInstance &&
+    mod &&
+    mod.loaders.length > 0 &&
+    !mod.loaders.includes(activeInstance.loader)
+
+  // Already installed check
+  const isInstalled = mod
+    ? installedMods.some((m) => m.projectId === mod.id)
+    : false
 
   useEffect(() => {
     if (!mod) return
     setVersions([])
     setShowAllVersions(false)
+    setSimilar([])
     setLoadingVersions(true)
 
     const loader = activeInstance?.loader
@@ -88,9 +109,40 @@ export function ModDetailPanel({ mod, onClose }: Props) {
       .then((v) => setVersions(v))
       .catch(() => setVersions([]))
       .finally(() => setLoadingVersions(false))
+
+    // Fetch similar mods using first category — only for Modrinth
+    if (mod.source === 'modrinth' && mod.categories.length > 0) {
+      const installedIds = new Set(installedMods.map((m) => m.projectId).filter(Boolean))
+      window.api
+        .searchModrinth({
+          query: '',
+          loader: loader,
+          mcVersion: mcVersion,
+          category: mod.categories[0],
+          limit: 8
+        })
+        .then((r) => {
+          const hits = r.hits.filter(
+            (h) => h.id !== mod.id && !installedIds.has(h.id)
+          ).slice(0, 3)
+          setSimilar(hits)
+        })
+        .catch(() => setSimilar([]))
+    }
   }, [mod?.id, activeInstance?.loader, activeInstance?.minecraftVersion])
 
   if (!mod) return null
+
+  const checkDepsAfterInstall = async (instanceId: string, sourceId?: string) => {
+    if (!sourceId || mod?.source !== 'modrinth') return
+    try {
+      const deps = await window.api.checkModDeps(instanceId, sourceId)
+      if (deps.length > 0) {
+        setMissingDeps(deps)
+        setShowDeps(true)
+      }
+    } catch { /* not critical */ }
+  }
 
   const handleInstallVersion = async (version: ModVersion) => {
     if (!activeInstance) { toast.error('Select an instance first'); return }
@@ -107,6 +159,7 @@ export function ModDetailPanel({ mod, onClose }: Props) {
       })
       addInstalledMod(activeInstance.id, installed)
       toast.success(`Installed ${mod.title} ${version.versionNumber}`)
+      await checkDepsAfterInstall(activeInstance.id, installed.sourceId)
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Install failed')
     } finally {
@@ -116,21 +169,20 @@ export function ModDetailPanel({ mod, onClose }: Props) {
 
   const handleInstallLatest = async () => {
     const latestRelease = versions.find((v) => v.releaseType === 'release') ?? versions[0]
-    if (latestRelease) handleInstallVersion(latestRelease)
-    else {
-      if (!activeInstance) { toast.error('Select an instance first'); return }
-      try {
-        const installed = await window.api.installMod({
-          instanceId: activeInstance.id,
-          modId: mod.id,
-          versionId: 'auto',
-          source: mod.source
-        })
-        addInstalledMod(activeInstance.id, installed)
-        toast.success(`Installed ${mod.title}`)
-      } catch (err: unknown) {
-        toast.error(err instanceof Error ? err.message : 'Install failed')
-      }
+    if (latestRelease) { handleInstallVersion(latestRelease); return }
+    if (!activeInstance) { toast.error('Select an instance first'); return }
+    try {
+      const installed = await window.api.installMod({
+        instanceId: activeInstance.id,
+        modId: mod.id,
+        versionId: 'auto',
+        source: mod.source
+      })
+      addInstalledMod(activeInstance.id, installed)
+      toast.success(`Installed ${mod.title}`)
+      await checkDepsAfterInstall(activeInstance.id, installed.sourceId)
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Install failed')
     }
   }
 
@@ -145,7 +197,23 @@ export function ModDetailPanel({ mod, onClose }: Props) {
   const displayedVersions = showAllVersions ? versions : versions.slice(0, 8)
 
   return (
+    <>
+    {showDeps && (
+      <DepsPrompt
+        deps={missingDeps}
+        onClose={() => { setShowDeps(false); setMissingDeps([]) }}
+      />
+    )}
     <div className="w-80 shrink-0 border-l border-zinc-800/60 bg-zinc-950 flex flex-col overflow-hidden animate-slide-in-right">
+      {/* Loader incompatibility warning */}
+      {loaderIncompat && (
+        <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-500/10 border-b border-amber-500/20">
+          <AlertTriangleIcon size={13} className="text-amber-400 shrink-0" />
+          <p className="text-[11px] text-amber-300 leading-snug">
+            This mod doesn't officially support <strong>{activeInstance.loader}</strong>. Install may not work.
+          </p>
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-start gap-3 p-4 border-b border-zinc-800/60">
         <div className="w-12 h-12 rounded-xl bg-zinc-800 border border-zinc-700 flex items-center justify-center shrink-0 overflow-hidden">
@@ -272,19 +340,61 @@ export function ModDetailPanel({ mod, onClose }: Props) {
             </div>
           )}
         </div>
+
+        {/* Similar mods */}
+        {similar.length > 0 && (
+          <div className="px-4 pb-4">
+            <div className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-2">
+              You Might Also Like
+            </div>
+            <div className="space-y-1.5">
+              {similar.map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => {
+                    // Trigger detail view for this mod — bubble up via a custom event
+                    window.dispatchEvent(new CustomEvent('browse:select-mod', { detail: s }))
+                  }}
+                  className="w-full flex items-center gap-2.5 bg-zinc-900/60 hover:bg-zinc-800/60 rounded-xl px-3 py-2 transition-colors text-left"
+                >
+                  <div className="w-7 h-7 rounded-lg bg-zinc-800 border border-zinc-700 flex items-center justify-center shrink-0 overflow-hidden">
+                    {s.iconUrl ? (
+                      <img src={s.iconUrl} alt={s.title} className="w-full h-full object-cover rounded-lg" />
+                    ) : (
+                      <PackageIcon size={12} className="text-zinc-600" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-zinc-200 truncate">{s.title}</p>
+                    <p className="text-[10px] text-zinc-600 truncate">{s.author}</p>
+                  </div>
+                  <DownloadIcon size={11} className="text-zinc-600 shrink-0" />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Footer actions */}
       <div className="p-4 border-t border-zinc-800/60 space-y-2">
-        <button onClick={handleInstallLatest} className="btn-primary w-full justify-center">
-          <DownloadIcon size={14} />
-          Install Latest
-        </button>
+        {isInstalled ? (
+          <div className="flex items-center justify-center gap-2 py-2 text-xs text-emerald-400 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
+            <CheckIcon size={13} />
+            Already installed
+          </div>
+        ) : (
+          <button onClick={handleInstallLatest} className="btn-primary w-full justify-center">
+            <DownloadIcon size={14} />
+            Install Latest
+          </button>
+        )}
         <button onClick={openPage} className="btn-ghost w-full justify-center text-xs">
           <ExternalLinkIcon size={12} />
           View on {mod.source === 'modrinth' ? 'Modrinth' : 'CurseForge'}
         </button>
       </div>
     </div>
+    </>
   )
 }

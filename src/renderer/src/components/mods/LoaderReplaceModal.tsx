@@ -12,21 +12,27 @@ import {
 import { useStore, selectActiveInstance } from '../../store'
 import type { InstalledMod, LoaderType, ModSearchHit } from '@shared/types'
 
-// Known cross-loader alternatives
+// Keys = mod's internal mod-id (from fabric.mod.json / mods.toml, stored in InstalledMod.id)
+// Values = Modrinth project slug for the alternative on that loader
 const LOADER_ALTERNATIVES: Record<string, Record<string, string>> = {
-  // fabric -> forge alternatives
-  'sodium': { forge: 'embeddium', neoforge: 'embeddium' },
-  'lithium': { forge: 'radium', neoforge: 'radium' },
-  'iris': { forge: 'oculus', neoforge: 'oculus' },
-  'starlight': { forge: 'starlight-forge', neoforge: 'starlight-forge' },
-  'krypton': { forge: 'krypton-reforged', neoforge: 'krypton-reforged' },
-  'ferritecore': { forge: 'ferritecore', neoforge: 'ferritecore' }, // same id
-  'entityculling': { forge: 'entity-culling-forge', neoforge: 'entity-culling-forge' },
-  'modmenu': { forge: 'catalogue', neoforge: 'catalogue' },
-  'optifabric': { forge: 'optifine', neoforge: 'optifine' },
-  // forge -> fabric
-  'embeddium': { fabric: 'sodium', quilt: 'sodium' },
-  'oculus': { fabric: 'iris', quilt: 'iris' },
+  // Fabric → Forge/NeoForge
+  'sodium':        { forge: 'embeddium',    neoforge: 'embeddium' },
+  'lithium':       { forge: 'radium',       neoforge: 'radium' },
+  'iris':          { forge: 'oculus',       neoforge: 'oculus' },
+  'krypton':       { forge: 'krypton-reforged', neoforge: 'krypton-reforged' },
+  // ferrite-core has the same Modrinth slug for all loaders (one project, multi-loader)
+  'ferritecore':   { forge: 'ferrite-core', neoforge: 'ferrite-core' },
+  'ferrite-core':  { forge: 'ferrite-core', neoforge: 'ferrite-core' },
+  // entityculling is also multi-loader on Modrinth under the same slug
+  'entityculling': { forge: 'entityculling', neoforge: 'entityculling' },
+  'entity-culling':{ forge: 'entityculling', neoforge: 'entityculling' },
+  'modmenu':       { forge: 'catalogue',    neoforge: 'catalogue' },
+  'optifabric':    { forge: 'optifine',     neoforge: 'optifine' },
+  // Forge/NeoForge → Fabric/Quilt
+  'embeddium':     { fabric: 'sodium',  quilt: 'sodium' },
+  'rubidium':      { fabric: 'sodium',  quilt: 'sodium' },
+  'oculus':        { fabric: 'iris',    quilt: 'iris' },
+  'starlight-forge':{ fabric: 'starlight', quilt: 'starlight' },
 }
 
 interface Suggestion {

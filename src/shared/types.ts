@@ -265,10 +265,28 @@ export const MOD_CATEGORIES = [
   'Game Mechanics'
 ]
 
+// ── Dependency resolution ─────────────────────────────────────────────────────
+export interface DepInfo {
+  projectId: string
+  name: string
+  slug: string
+  iconUrl?: string
+  required: boolean
+}
+
+// ── Modpack import ────────────────────────────────────────────────────────────
+export interface ImportProgress {
+  current: number
+  total: number
+  message: string
+  stage: 'extracting' | 'installing' | 'done' | 'error'
+}
+
 export const OPTIMIZATION_PACK: Record<LoaderType, string[]> = {
-  fabric: ['sodium', 'lithium', 'ferrite-core', 'entity-culling', 'starlight', 'krypton', 'lazydfu'],
-  forge: ['embeddium', 'ferritecore', 'entity-culling-forge', 'lazydfu'],
-  neoforge: ['embeddium', 'ferritecore', 'entity-culling-forge'],
-  quilt: ['sodium', 'lithium', 'ferrite-core', 'entity-culling'],
-  vanilla: []
+  // Slugs must match exactly what Modrinth returns in project_id / slug lookups
+  fabric:   ['sodium', 'lithium', 'ferrite-core', 'entityculling', 'krypton'],
+  forge:    ['embeddium', 'ferrite-core', 'entityculling'],
+  neoforge: ['embeddium', 'ferrite-core', 'entityculling'],
+  quilt:    ['sodium', 'lithium', 'ferrite-core', 'entityculling'],
+  vanilla:  []
 }

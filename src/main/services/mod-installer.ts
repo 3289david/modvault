@@ -75,11 +75,17 @@ export async function installMod(
     let version = await getBestVersion(params.modId, instance.loader, instance.minecraftVersion)
 
     if (params.versionId && params.versionId !== 'auto') {
-      const versions = await getModrinthVersions(params.modId)
-      version = versions.find((v) => v.id === params.versionId) ?? version
+      try {
+        const versions = await getModrinthVersions(params.modId)
+        version = versions.find((v) => v.id === params.versionId) ?? version
+      } catch { /* keep the best-version fallback */ }
     }
 
-    if (!version) throw new Error('No compatible version found on Modrinth')
+    if (!version) {
+      throw new Error(
+        `No compatible version of "${params.modId}" found for ${instance.loader} ${instance.minecraftVersion}`
+      )
+    }
 
     const file = version.files.find((f) => f.primary) ?? version.files[0]
     if (!file) throw new Error('No download file found')

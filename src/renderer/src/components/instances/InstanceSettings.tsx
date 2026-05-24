@@ -91,20 +91,15 @@ export function InstanceSettings({ instance, onClose, onUpdated }: Props) {
   const handleImportFromMc = async () => {
     setImportingMc(true)
     try {
-      const settings = await window.api.getSettings()
-      const mcModsPath = `${settings.minecraftPath}\\mods`
-      // Let user pick a mods folder
-      const folder = await window.api.selectFolder()
-      if (!folder) { setImportingMc(false); return }
-
-      // We'll implement this as importing all JARs from the selected folder
-      let count = 0
-      // The actual scan happens server-side via a new IPC call
-      toast.info(`Importing from ${folder}...`)
-
-      // For now, open the folder and let user drag files
-      await window.api.openPath(folder)
-      toast.success('Opened folder — drag JARs into the Browse tab or use "Import JAR" in My Mods')
+      const mods = await window.api.importFromFolder(instance.id)
+      if (!mods.length) {
+        toast('No JAR files found in the selected folder')
+        return
+      }
+      for (const mod of mods) {
+        useStore.getState().addInstalledMod(instance.id, mod)
+      }
+      toast.success(`Imported ${mods.length} mod${mods.length !== 1 ? 's' : ''} successfully`)
     } catch {
       toast.error('Import failed')
     } finally {
