@@ -1,12 +1,13 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import { app } from 'electron'
-import type { Instance, InstalledMod, Settings } from '../shared/types'
+import type { Instance, InstalledMod, Settings, AuthProfile } from '../shared/types'
 
 interface StoreData {
   settings: Partial<Settings>
   instances: Instance[]
   installedMods: Record<string, InstalledMod[]>
+  auth: AuthProfile | null
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -15,7 +16,12 @@ const DEFAULT_SETTINGS: Settings = {
   defaultLoader: 'fabric',
   autoCheckConflicts: true,
   theme: 'dark',
-  dataDir: path.join(app.getPath('userData'))
+  dataDir: app.getPath('userData'),
+  javaPath: '',
+  maxMemoryMB: 4096,
+  minMemoryMB: 1024,
+  jvmArgs: '',
+  closeOnLaunch: false
 }
 
 class Store {
@@ -24,7 +30,7 @@ class Store {
   readonly dataDir: string
 
   constructor() {
-    this.dataDir = path.join(app.getPath('userData'))
+    this.dataDir = app.getPath('userData')
     this.filePath = path.join(this.dataDir, 'data.json')
     fs.mkdirSync(this.dataDir, { recursive: true })
     this.data = this.load()
@@ -33,9 +39,9 @@ class Store {
   private load(): StoreData {
     try {
       const raw = fs.readFileSync(this.filePath, 'utf8')
-      return JSON.parse(raw)
+      return { auth: null, ...JSON.parse(raw) }
     } catch {
-      return { settings: {}, instances: [], installedMods: {} }
+      return { settings: {}, instances: [], installedMods: {}, auth: null }
     }
   }
 
@@ -68,6 +74,15 @@ class Store {
   saveInstalledMods(instanceId: string, mods: InstalledMod[]) {
     if (!this.data.installedMods) this.data.installedMods = {}
     this.data.installedMods[instanceId] = mods
+    this.save()
+  }
+
+  getAuth(): AuthProfile | null {
+    return this.data.auth ?? null
+  }
+
+  saveAuth(auth: AuthProfile | null) {
+    this.data.auth = auth
     this.save()
   }
 }

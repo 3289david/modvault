@@ -372,3 +372,38 @@ export const CurseForgeIcon = ({ size = 16, className = '' }: IconProps) => (
     <path d="M11.97 2L5 8.5 7.5 11 5 13.5 8 16l-3 6h4l2-4 3 4h4l-3-6 3-2.5L13 11l2.5-2.5L11.97 2z" />
   </svg>
 )
+
+export const UserIcon = icon(
+  <>
+    <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+    <circle cx="12" cy="7" r="4" />
+  </>
+)
+
+export const MicrosoftIcon = ({ size = 16, className = '' }: IconProps) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className}>
+    <rect x="2" y="2" width="9.5" height="9.5" fill="#f25022" />
+    <rect x="12.5" y="2" width="9.5" height="9.5" fill="#7fba00" />
+    <rect x="2" y="12.5" width="9.5" height="9.5" fill="#00a4ef" />
+    <rect x="12.5" y="12.5" width="9.5" height="9.5" fill="#ffb900" />
+  </svg>
+)
+
+export const StopIcon = icon(
+  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+)
+
+export const RocketIcon = icon(
+  <>
+    <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 00-2.91-.09z" />
+    <path d="M12 15l-3-3a22 22 0 012-3.95A12.88 12.88 0 0122 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 01-4 2z" />
+    <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0" />
+    <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5" />
+  </>
+)
+
+export const JavaIcon = ({ size = 16, className = '' }: IconProps) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className}>
+    <path d="M8.85 16.83c-.45.24-.7.63-.7 1.07 0 .97 1.38 1.79 3.85 1.79 2.47 0 3.85-.82 3.85-1.79 0-.44-.25-.83-.7-1.07-.83.34-1.9.54-3.15.54-1.25 0-2.32-.2-3.15-.54zm4.15-8.09c-3.31 0-5.5 1.24-5.5 2.76s2.19 2.76 5.5 2.76 5.5-1.24 5.5-2.76-2.19-2.76-5.5-2.76zM8.5 4.5c0-1 1-1.8 2.5-2.1C9 2.8 7.5 4 7.5 5.5c0 .9.7 1.7 1.8 2.3C8.8 7 8.5 5.8 8.5 4.5zm7 0c0 1.3-.3 2.5-.8 3.3 1.1-.6 1.8-1.4 1.8-2.3 0-1.5-1.5-2.7-3.5-3.1 1.5.3 2.5 1.1 2.5 2.1z" />
+  </svg>
+)

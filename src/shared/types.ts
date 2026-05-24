@@ -12,6 +12,7 @@ export interface Instance {
   createdAt: string
   lastPlayed?: string
   modCount?: number
+  loaderInstalled?: boolean
 }
 
 export interface CreateInstanceConfig {
@@ -150,6 +151,46 @@ export interface DownloadProgress {
   status: 'downloading' | 'installing' | 'done' | 'error'
 }
 
+// ── Auth ──────────────────────────────────────────────────────────────────────
+export interface AuthProfile {
+  type: 'microsoft' | 'offline'
+  username: string
+  uuid: string
+  accessToken: string
+  clientToken: string
+  refreshToken?: string
+  expiresAt?: number
+}
+
+// ── Launch ────────────────────────────────────────────────────────────────────
+export interface LaunchProgress {
+  instanceId: string
+  message: string
+  progress: number
+  stage: 'checking' | 'downloading' | 'launching' | 'running' | 'closed' | 'error'
+}
+
+export interface GameLogEntry {
+  instanceId: string
+  type: 'info' | 'warn' | 'error' | 'debug'
+  message: string
+  timestamp: string
+}
+
+// ── Minecraft Versions ────────────────────────────────────────────────────────
+export interface MinecraftVersion {
+  id: string
+  type: 'release' | 'snapshot' | 'old_beta' | 'old_alpha'
+  releaseTime: string
+  url: string
+}
+
+export interface LoaderVersionInfo {
+  version: string
+  stable: boolean
+}
+
+// ── Settings ──────────────────────────────────────────────────────────────────
 export interface Settings {
   minecraftPath: string
   curseforgeApiKey: string
@@ -157,6 +198,12 @@ export interface Settings {
   autoCheckConflicts: boolean
   theme: 'dark' | 'light'
   dataDir: string
+  // Launch settings
+  javaPath: string
+  maxMemoryMB: number
+  minMemoryMB: number
+  jvmArgs: string
+  closeOnLaunch: boolean
 }
 
 export const MC_VERSIONS = [

@@ -8,13 +8,13 @@ import {
   LayersIcon,
   AlertTriangleIcon,
   SearchIcon,
-  RefreshIcon,
   LoaderSpinIcon,
   DownloadIcon,
-  FabricLoaderIcon,
-  ForgeLoaderIcon,
-  NeoForgeLoaderIcon,
-  CheckIcon
+  CheckIcon,
+  RocketIcon,
+  StopIcon,
+  UserIcon,
+  JavaIcon
 } from '../icons'
 import {
   useStore,
@@ -60,47 +60,6 @@ function StatCard({
   )
 }
 
-function QuickAction({
-  icon: Icon,
-  label,
-  desc,
-  onClick,
-  color = 'violet',
-  loading = false
-}: {
-  icon: React.FC<{ size?: number; className?: string }>
-  label: string
-  desc: string
-  onClick: () => void
-  color?: string
-  loading?: boolean
-}) {
-  const hoverColors: Record<string, string> = {
-    violet: 'hover:border-violet-500/40 hover:bg-violet-500/5',
-    emerald: 'hover:border-emerald-500/40 hover:bg-emerald-500/5',
-    amber: 'hover:border-amber-500/40 hover:bg-amber-500/5'
-  }
-  const iconColors: Record<string, string> = {
-    violet: 'text-violet-400',
-    emerald: 'text-emerald-400',
-    amber: 'text-amber-400'
-  }
-  return (
-    <button
-      onClick={onClick}
-      className={`card p-4 flex items-start gap-3 w-full text-left transition-all duration-200 ${hoverColors[color]}`}
-    >
-      <div className={`mt-0.5 ${iconColors[color]}`}>
-        {loading ? <LoaderSpinIcon size={18} /> : <Icon size={18} />}
-      </div>
-      <div>
-        <div className="text-sm font-medium text-zinc-200">{label}</div>
-        <div className="text-xs text-zinc-500 mt-0.5">{desc}</div>
-      </div>
-    </button>
-  )
-}
-
 export function Dashboard() {
   const navigate = useNavigate()
   const activeInstance = useStore(selectActiveInstance)
@@ -108,15 +67,57 @@ export function Dashboard() {
   const conflicts = useStore(selectConflicts)
   const instances = useStore((s) => s.instances)
   const downloads = useStore((s) => s.downloads)
+  const auth = useStore((s) => s.auth)
+  const runningInstances = useStore((s) => s.runningInstances)
+  const launchProgress = useStore((s) =>
+    activeInstance ? s.launchProgress[activeInstance.id] : null
+  )
+  const setShowAuthModal = useStore((s) => s.setShowAuthModal)
+  const setShowConsole = useStore((s) => s.setShowConsole)
+
   const { check: checkConflicts } = useConflicts(activeInstance?.id ?? null)
 
   const [checkingConflicts, setCheckingConflicts] = useState(false)
   const [installingOptimization, setInstallingOptimization] = useState(false)
+  const [launching, setLaunching] = useState(false)
+  const [javaInfo, setJavaInfo] = useState<{ path: string; version: string } | null>(null)
 
+  const isRunning = activeInstance ? runningInstances.includes(activeInstance.id) : false
   const errorCount = conflicts.filter((c) => c.severity === 'error').length
   const warnCount = conflicts.filter((c) => c.severity === 'warning').length
   const activeDownloads = Object.values(downloads)
   const enabledMods = installedMods.filter((m) => m.enabled)
+
+  // Detect Java when instance changes
+  useEffect(() => {
+    if (!activeInstance) return
+    window.api.detectJava(activeInstance.minecraftVersion).then(setJavaInfo).catch(() => {})
+  }, [activeInstance?.minecraftVersion])
+
+  const handleLaunch = async () => {
+    if (!activeInstance) { toast.error('Select an instance first'); return }
+    if (!auth) { setShowAuthModal(true); return }
+
+    setLaunching(true)
+    try {
+      await window.api.launchInstance(activeInstance.id)
+      // Console opens automatically via game-started event
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      toast.error(msg)
+      if (msg.includes('log in') || msg.includes('sign in')) {
+        setShowAuthModal(true)
+      }
+    } finally {
+      setLaunching(false)
+    }
+  }
+
+  const handleStop = async () => {
+    if (!activeInstance) return
+    await window.api.stopInstance(activeInstance.id)
+    toast('Game stopped')
+  }
 
   const handleCheckConflicts = async () => {
     setCheckingConflicts(true)
@@ -142,9 +143,7 @@ export function Dashboard() {
         })
         useStore.getState().addInstalledMod(activeInstance.id, mod)
         installed++
-      } catch {
-        // Skip mods that can't be found
-      }
+      } catch { /* skip */ }
     }
     setInstallingOptimization(false)
     toast.success(`Installed ${installed} optimization mods`)
@@ -152,24 +151,136 @@ export function Dashboard() {
 
   return (
     <div className="flex-1 overflow-y-auto">
-      <div className="max-w-4xl mx-auto p-6 space-y-8">
+      <div className="max-w-4xl mx-auto p-6 space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="page-title">
-            {activeInstance ? (
-              <>
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="page-title">
+              {activeInstance ? (
                 <span className="gradient-text">{activeInstance.name}</span>
-              </>
-            ) : (
-              'Dashboard'
-            )}
-          </h1>
-          <p className="text-sm text-zinc-500 mt-1">
-            {activeInstance
-              ? `MC ${activeInstance.minecraftVersion} · ${activeInstance.loader} · ${enabledMods.length} mods active`
-              : 'Create or select an instance to get started'}
-          </p>
+              ) : (
+                'Dashboard'
+              )}
+            </h1>
+            <p className="text-sm text-zinc-500 mt-1">
+              {activeInstance
+                ? `MC ${activeInstance.minecraftVersion} · ${activeInstance.loader} · ${enabledMods.length} mods active`
+                : 'Create or select an instance to get started'}
+            </p>
+          </div>
+
+          {/* Auth badge */}
+          {auth ? (
+            <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2">
+              <div className="w-2 h-2 rounded-full bg-emerald-500" />
+              <span className="text-xs text-zinc-300 font-medium">{auth.username}</span>
+              {auth.type === 'offline' && (
+                <span className="text-[10px] text-zinc-500">(offline)</span>
+              )}
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowAuthModal(true)}
+              className="btn-secondary text-xs py-2 px-3"
+            >
+              <UserIcon size={13} />
+              Sign In
+            </button>
+          )}
         </div>
+
+        {/* ── LAUNCH PANEL ──────────────────────────────────────────────────── */}
+        {activeInstance && (
+          <div className={`card p-5 border-2 transition-colors ${
+            isRunning
+              ? 'border-emerald-500/40 bg-emerald-500/5'
+              : 'border-violet-500/30 bg-violet-500/5'
+          }`}>
+            <div className="flex items-center gap-4">
+              {/* Instance icon */}
+              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 ${
+                isRunning ? 'bg-emerald-500/20' : 'bg-violet-500/20'
+              }`}>
+                <RocketIcon size={26} className={isRunning ? 'text-emerald-400' : 'text-violet-400'} />
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <span className="font-semibold text-zinc-100">{activeInstance.name}</span>
+                  {isRunning && (
+                    <span className="flex items-center gap-1 text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      Running
+                    </span>
+                  )}
+                </div>
+                <div className="text-xs text-zinc-500">
+                  MC {activeInstance.minecraftVersion} · {activeInstance.loader}
+                  {activeInstance.loaderVersion && activeInstance.loaderVersion !== 'latest'
+                    ? ` ${activeInstance.loaderVersion}`
+                    : ''}
+                  {' · '}{enabledMods.length} mods
+                </div>
+
+                {/* Launch progress */}
+                {launchProgress && launchProgress.stage !== 'running' && launchProgress.stage !== 'closed' && (
+                  <div className="mt-2">
+                    <div className="flex justify-between text-[10px] text-zinc-500 mb-1">
+                      <span>{launchProgress.message}</span>
+                      <span>{launchProgress.progress}%</span>
+                    </div>
+                    <div className="h-1 bg-zinc-800 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-violet-500 rounded-full transition-all duration-500"
+                        style={{ width: `${launchProgress.progress}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Java warning */}
+                {!javaInfo && (
+                  <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-amber-400">
+                    <JavaIcon size={11} />
+                    Java not detected — set path in Settings → Launch
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                {isRunning ? (
+                  <>
+                    <button
+                      onClick={() => setShowConsole(activeInstance.id)}
+                      className="btn-secondary text-xs px-3 py-2"
+                    >
+                      View Console
+                    </button>
+                    <button
+                      onClick={handleStop}
+                      className="btn-secondary text-xs px-3 py-2 border-red-500/30 text-red-400 hover:bg-red-500/10"
+                    >
+                      <StopIcon size={13} />
+                      Stop
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={handleLaunch}
+                    disabled={launching}
+                    className="btn-primary px-6 py-3 text-base font-bold"
+                  >
+                    {launching ? (
+                      <><LoaderSpinIcon size={16} /> Launching...</>
+                    ) : (
+                      <><RocketIcon size={16} /> Launch</>
+                    )}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Active downloads */}
         {activeDownloads.length > 0 && (
@@ -182,7 +293,7 @@ export function Dashboard() {
               {activeDownloads.map((d) => (
                 <div key={d.modId}>
                   <div className="flex justify-between text-xs text-zinc-400 mb-1">
-                    <span>{d.fileName}</span>
+                    <span className="truncate">{d.fileName}</span>
                     <span>{d.progress}%</span>
                   </div>
                   <div className="h-1 bg-zinc-800 rounded-full overflow-hidden">
@@ -199,26 +310,29 @@ export function Dashboard() {
 
         {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard
-            icon={LayersIcon}
-            label="Instances"
-            value={instances.length}
-            color="violet"
-          />
+          <StatCard icon={LayersIcon} label="Instances" value={instances.length} color="violet" />
           <StatCard
             icon={PackageIcon}
             label="Mods Installed"
             value={enabledMods.length}
-            sub={installedMods.length - enabledMods.length > 0
-              ? `${installedMods.length - enabledMods.length} disabled`
-              : undefined}
+            sub={
+              installedMods.length - enabledMods.length > 0
+                ? `${installedMods.length - enabledMods.length} disabled`
+                : undefined
+            }
             color="blue"
           />
           <StatCard
             icon={errorCount > 0 ? AlertTriangleIcon : CheckIcon}
             label="Conflicts"
             value={errorCount + warnCount}
-            sub={errorCount > 0 ? `${errorCount} errors` : warnCount > 0 ? `${warnCount} warnings` : 'All clear'}
+            sub={
+              errorCount > 0
+                ? `${errorCount} errors`
+                : warnCount > 0
+                ? `${warnCount} warnings`
+                : 'All clear'
+            }
             color={errorCount > 0 ? 'red' : warnCount > 0 ? 'amber' : 'emerald'}
           />
           <StatCard
@@ -243,11 +357,11 @@ export function Dashboard() {
               <div>
                 <p className={`text-sm font-medium ${errorCount > 0 ? 'text-red-300' : 'text-amber-300'}`}>
                   {errorCount > 0
-                    ? `${errorCount} mod conflict${errorCount > 1 ? 's' : ''} detected`
+                    ? `${errorCount} conflict${errorCount > 1 ? 's' : ''} detected`
                     : `${warnCount} warning${warnCount > 1 ? 's' : ''}`}
                 </p>
                 <p className="text-xs text-zinc-500 mt-0.5">
-                  {conflicts[0]?.description} Click to view details.
+                  {conflicts[0]?.description} — Click to view details.
                 </p>
               </div>
             </div>
@@ -258,29 +372,48 @@ export function Dashboard() {
         <div>
           <h2 className="text-sm font-semibold text-zinc-300 mb-3">Quick Actions</h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <QuickAction
-              icon={SearchIcon}
-              label="Browse Mods"
-              desc="Find and install mods from Modrinth & CurseForge"
+            <button
               onClick={() => navigate('/browse')}
-              color="violet"
-            />
-            <QuickAction
-              icon={ZapIcon}
-              label="One-click Optimize"
-              desc={`Install performance mods for ${activeInstance?.loader ?? 'your loader'}`}
+              className="card p-4 flex items-start gap-3 w-full text-left hover:border-violet-500/40 hover:bg-violet-500/5 transition-all"
+            >
+              <SearchIcon size={18} className="text-violet-400 mt-0.5" />
+              <div>
+                <div className="text-sm font-medium text-zinc-200">Browse Mods</div>
+                <div className="text-xs text-zinc-500 mt-0.5">Modrinth &amp; CurseForge</div>
+              </div>
+            </button>
+            <button
               onClick={handleOptimize}
-              color="emerald"
-              loading={installingOptimization}
-            />
-            <QuickAction
-              icon={ShieldIcon}
-              label="Check Conflicts"
-              desc="Scan for mod incompatibilities and issues"
+              disabled={installingOptimization}
+              className="card p-4 flex items-start gap-3 w-full text-left hover:border-emerald-500/40 hover:bg-emerald-500/5 transition-all"
+            >
+              {installingOptimization ? (
+                <LoaderSpinIcon size={18} className="text-emerald-400 mt-0.5" />
+              ) : (
+                <ZapIcon size={18} className="text-emerald-400 mt-0.5" />
+              )}
+              <div>
+                <div className="text-sm font-medium text-zinc-200">One-click Optimize</div>
+                <div className="text-xs text-zinc-500 mt-0.5">
+                  Performance mods for {activeInstance?.loader ?? 'your loader'}
+                </div>
+              </div>
+            </button>
+            <button
               onClick={handleCheckConflicts}
-              color="amber"
-              loading={checkingConflicts}
-            />
+              disabled={checkingConflicts}
+              className="card p-4 flex items-start gap-3 w-full text-left hover:border-amber-500/40 hover:bg-amber-500/5 transition-all"
+            >
+              {checkingConflicts ? (
+                <LoaderSpinIcon size={18} className="text-amber-400 mt-0.5" />
+              ) : (
+                <ShieldIcon size={18} className="text-amber-400 mt-0.5" />
+              )}
+              <div>
+                <div className="text-sm font-medium text-zinc-200">Check Conflicts</div>
+                <div className="text-xs text-zinc-500 mt-0.5">Scan for incompatibilities</div>
+              </div>
+            </button>
           </div>
         </div>
 
@@ -295,13 +428,20 @@ export function Dashboard() {
             </div>
             <div className="card divide-y divide-zinc-800/60">
               {[...installedMods]
-                .sort((a, b) => new Date(b.installDate).getTime() - new Date(a.installDate).getTime())
+                .sort(
+                  (a, b) =>
+                    new Date(b.installDate).getTime() - new Date(a.installDate).getTime()
+                )
                 .slice(0, 5)
                 .map((mod) => (
                   <div key={mod.fileId} className="flex items-center gap-3 px-4 py-3">
                     <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700 flex items-center justify-center shrink-0">
                       {mod.iconUrl ? (
-                        <img src={mod.iconUrl} alt={mod.name} className="w-full h-full rounded-lg object-cover" />
+                        <img
+                          src={mod.iconUrl}
+                          alt={mod.name}
+                          className="w-full h-full rounded-lg object-cover"
+                        />
                       ) : (
                         <PackageIcon size={14} className="text-zinc-600" />
                       )}
@@ -310,7 +450,9 @@ export function Dashboard() {
                       <div className="text-sm font-medium text-zinc-200 truncate">{mod.name}</div>
                       <div className="text-xs text-zinc-600">{mod.version}</div>
                     </div>
-                    <div className={`w-2 h-2 rounded-full ${mod.enabled ? 'bg-emerald-500' : 'bg-zinc-600'}`} />
+                    <div
+                      className={`w-2 h-2 rounded-full ${mod.enabled ? 'bg-emerald-500' : 'bg-zinc-600'}`}
+                    />
                   </div>
                 ))}
             </div>

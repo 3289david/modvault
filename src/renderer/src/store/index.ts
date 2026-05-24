@@ -5,7 +5,10 @@ import type {
   Conflict,
   Settings,
   DownloadProgress,
-  SearchResult
+  SearchResult,
+  AuthProfile,
+  LaunchProgress,
+  GameLogEntry
 } from '@shared/types'
 
 interface AppState {
@@ -29,8 +32,19 @@ interface AppState {
   settings: Settings | null
   settingsLoaded: boolean
 
+  // Auth
+  auth: AuthProfile | null
+  authLoaded: boolean
+
+  // Launch
+  launchProgress: Record<string, LaunchProgress>
+  runningInstances: string[]
+  gameLogs: Record<string, GameLogEntry[]>
+
   // UI
   sidebarCollapsed: boolean
+  showAuthModal: boolean
+  showConsole: string | null  // instanceId whose console is open
 
   // Actions
   setInstances: (instances: Instance[]) => void
@@ -48,9 +62,17 @@ interface AppState {
   addInstalledMod: (instanceId: string, mod: InstalledMod) => void
   removeInstalledMod: (instanceId: string, fileId: string) => void
   updateInstalledMod: (instanceId: string, fileId: string, patch: Partial<InstalledMod>) => void
+  setAuth: (auth: AuthProfile | null) => void
+  setLaunchProgress: (p: LaunchProgress) => void
+  clearLaunchProgress: (instanceId: string) => void
+  addGameLog: (entry: GameLogEntry) => void
+  clearGameLogs: (instanceId: string) => void
+  setGameRunning: (instanceId: string, running: boolean) => void
+  setShowAuthModal: (v: boolean) => void
+  setShowConsole: (instanceId: string | null) => void
 }
 
-export const useStore = create<AppState>((set, get) => ({
+export const useStore = create<AppState>((set) => ({
   instances: [],
   activeInstanceId: null,
   instancesLoaded: false,
@@ -61,32 +83,31 @@ export const useStore = create<AppState>((set, get) => ({
   searchLoading: false,
   settings: null,
   settingsLoaded: false,
+  auth: null,
+  authLoaded: false,
+  launchProgress: {},
+  runningInstances: [],
+  gameLogs: {},
   sidebarCollapsed: false,
+  showAuthModal: false,
+  showConsole: null,
 
   setInstances: (instances) => set({ instances, instancesLoaded: true }),
-
   setActiveInstance: (activeInstanceId) => set({ activeInstanceId }),
-
   setInstalledMods: (instanceId, mods) =>
     set((s) => ({ installedMods: { ...s.installedMods, [instanceId]: mods } })),
-
   setConflicts: (instanceId, conflicts) =>
     set((s) => ({ conflicts: { ...s.conflicts, [instanceId]: conflicts } })),
-
   setDownloadProgress: (p) =>
     set((s) => ({ downloads: { ...s.downloads, [p.modId]: p } })),
-
   removeDownload: (modId) =>
     set((s) => {
       const { [modId]: _, ...rest } = s.downloads
       return { downloads: rest }
     }),
-
   setSearchResults: (searchResults) => set({ searchResults }),
   setSearchLoading: (searchLoading) => set({ searchLoading }),
-
   setSettings: (settings) => set({ settings, settingsLoaded: true }),
-
   setSidebarCollapsed: (sidebarCollapsed) => set({ sidebarCollapsed }),
 
   upsertInstance: (instance) =>
@@ -99,20 +120,17 @@ export const useStore = create<AppState>((set, get) => ({
       }
       return { instances: [...s.instances, instance] }
     }),
-
   removeInstance: (id) =>
     set((s) => ({
       instances: s.instances.filter((i) => i.id !== id),
       activeInstanceId: s.activeInstanceId === id ? null : s.activeInstanceId
     })),
-
   addInstalledMod: (instanceId, mod) =>
     set((s) => {
       const existing = s.installedMods[instanceId] ?? []
       const filtered = existing.filter((m) => m.fileId !== mod.fileId)
       return { installedMods: { ...s.installedMods, [instanceId]: [...filtered, mod] } }
     }),
-
   removeInstalledMod: (instanceId, fileId) =>
     set((s) => ({
       installedMods: {
@@ -120,7 +138,6 @@ export const useStore = create<AppState>((set, get) => ({
         [instanceId]: (s.installedMods[instanceId] ?? []).filter((m) => m.fileId !== fileId)
       }
     })),
-
   updateInstalledMod: (instanceId, fileId, patch) =>
     set((s) => ({
       installedMods: {
@@ -129,7 +146,37 @@ export const useStore = create<AppState>((set, get) => ({
           m.fileId === fileId ? { ...m, ...patch } : m
         )
       }
-    }))
+    })),
+
+  setAuth: (auth) => set({ auth, authLoaded: true }),
+
+  setLaunchProgress: (p) =>
+    set((s) => ({ launchProgress: { ...s.launchProgress, [p.instanceId]: p } })),
+  clearLaunchProgress: (instanceId) =>
+    set((s) => {
+      const { [instanceId]: _, ...rest } = s.launchProgress
+      return { launchProgress: rest }
+    }),
+
+  addGameLog: (entry) =>
+    set((s) => {
+      const existing = s.gameLogs[entry.instanceId] ?? []
+      // Keep last 500 lines per instance
+      const next = [...existing, entry].slice(-500)
+      return { gameLogs: { ...s.gameLogs, [entry.instanceId]: next } }
+    }),
+  clearGameLogs: (instanceId) =>
+    set((s) => ({ gameLogs: { ...s.gameLogs, [instanceId]: [] } })),
+
+  setGameRunning: (instanceId, running) =>
+    set((s) => ({
+      runningInstances: running
+        ? [...s.runningInstances.filter((id) => id !== instanceId), instanceId]
+        : s.runningInstances.filter((id) => id !== instanceId)
+    })),
+
+  setShowAuthModal: (showAuthModal) => set({ showAuthModal }),
+  setShowConsole: (showConsole) => set({ showConsole })
 }))
 
 // Selectors

@@ -3,14 +3,15 @@ import toast from 'react-hot-toast'
 import {
   FolderIcon,
   TrashIcon,
-  PackageIcon,
   FabricLoaderIcon,
   ForgeLoaderIcon,
   NeoForgeLoaderIcon,
   QuiltLoaderIcon,
   PlayIcon,
   LoaderSpinIcon,
-  SettingsIcon
+  SettingsIcon,
+  RocketIcon,
+  StopIcon
 } from '../../icons'
 import { useStore } from '../../store'
 import { InstanceSettings } from './InstanceSettings'
@@ -50,10 +51,16 @@ interface InstanceCardProps {
 
 export function InstanceCard({ instance, active, onSelect, onDeleted }: InstanceCardProps) {
   const [deleting, setDeleting] = useState(false)
+  const [launching, setLaunching] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [localInstance, setLocalInstance] = useState(instance)
   const removeInstance = useStore((s) => s.removeInstance)
   const upsertInstance = useStore((s) => s.upsertInstance)
+  const auth = useStore((s) => s.auth)
+  const runningInstances = useStore((s) => s.runningInstances)
+  const setShowAuthModal = useStore((s) => s.setShowAuthModal)
+  const setShowConsole = useStore((s) => s.setShowConsole)
+  const isRunning = runningInstances.includes(instance.id)
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -74,6 +81,27 @@ export function InstanceCard({ instance, active, onSelect, onDeleted }: Instance
   const openFolder = (e: React.MouseEvent) => {
     e.stopPropagation()
     window.api.openInstanceFolder(instance.id)
+  }
+
+  const handleLaunch = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!auth) { setShowAuthModal(true); return }
+    setLaunching(true)
+    try {
+      await window.api.launchInstance(instance.id)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      toast.error(msg)
+      if (msg.includes('log in') || msg.includes('sign in')) setShowAuthModal(true)
+    } finally {
+      setLaunching(false)
+    }
+  }
+
+  const handleStop = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    window.api.stopInstance(instance.id)
+    toast('Game stopped')
   }
 
   return (
@@ -120,12 +148,35 @@ export function InstanceCard({ instance, active, onSelect, onDeleted }: Instance
 
         {/* Actions */}
         <div className="flex items-center gap-2">
+          {isRunning ? (
+            <>
+              <button
+                onClick={(e) => { e.stopPropagation(); setShowConsole(instance.id) }}
+                className="btn-ghost py-1.5 px-3 text-xs flex-1 justify-center text-emerald-400"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                Console
+              </button>
+              <button onClick={handleStop} className="btn-danger py-1.5 px-3 text-xs">
+                <StopIcon size={13} />
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={handleLaunch}
+              disabled={launching}
+              className="btn-primary py-1.5 px-3 text-xs flex-1 justify-center"
+            >
+              {launching ? <LoaderSpinIcon size={13} /> : <RocketIcon size={13} />}
+              {launching ? 'Launching...' : 'Launch'}
+            </button>
+          )}
           <button
             onClick={openFolder}
-            className="btn-ghost py-1.5 px-3 text-xs flex-1 justify-center"
+            className="btn-ghost py-1.5 px-2 text-xs"
+            title="Open folder"
           >
             <FolderIcon size={13} />
-            Open Folder
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); setShowSettings(true) }}
@@ -137,7 +188,7 @@ export function InstanceCard({ instance, active, onSelect, onDeleted }: Instance
           <button
             onClick={handleDelete}
             disabled={deleting}
-            className="btn-danger py-1.5 px-3 text-xs"
+            className="btn-danger py-1.5 px-2 text-xs"
           >
             {deleting ? <LoaderSpinIcon size={13} /> : <TrashIcon size={13} />}
           </button>
