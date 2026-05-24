@@ -5,7 +5,16 @@
       "Bash(npm run *)",
       "Bash(git init *)",
       "Bash(git add *)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(git config *)",
+      "Bash(gh repo *)",
+      "Bash(where gh *)",
+      "Bash(refreshenv)",
+      "Bash(\"C:\\\\Program Files\\\\GitHub CLI\\\\gh.exe\" --version)",
+      "Bash(cmd /c \"where gh\")",
+      "Bash(cmd /c \"gh --version\")",
+      "Bash(cmd /c \"dir \\\\\"C:\\\\Program Files\\\\GitHub CLI\\\\\" 2>&1 && dir \\\\\"C:\\\\Users\\\\danwoo\\\\AppData\\\\Local\\\\GitHub CLI\\\\\" 2>&1\")",
+      "Bash(powershell -Command \"winget install --id GitHub.cli --accept-package-agreements --accept-source-agreements 2>&1\")"
     ]
   }
 }

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { ModCard } from '../components/mods/ModCard'
+import { ModDetailPanel } from '../components/mods/ModDetailPanel'
 import {
   SearchIcon,
   LoaderSpinIcon,
@@ -60,6 +61,7 @@ export function Browse() {
   const [offset, setOffset] = useState(0)
   const [loading, setLoading] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
+  const [selectedMod, setSelectedMod] = useState<ModSearchHit | null>(null)
 
   const activeInstance = useStore(selectActiveInstance)
   const installedMods = useStore(selectInstalledMods)
@@ -118,7 +120,8 @@ export function Browse() {
   const handleLoadMore = () => search(offset + LIMIT, true)
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden">
       {/* Search bar */}
       <div className="shrink-0 border-b border-zinc-800/60 bg-zinc-950/80 p-4">
         <div className="max-w-5xl mx-auto space-y-3">
@@ -236,7 +239,9 @@ export function Browse() {
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {results.map((mod) => (
-                  <ModCard key={`${mod.source}-${mod.id}`} mod={mod} installedFileIds={installedIds} />
+                  <div key={`${mod.source}-${mod.id}`} onClick={() => setSelectedMod(mod)} className="cursor-pointer">
+                    <ModCard mod={mod} installedFileIds={installedIds} />
+                  </div>
                 ))}
                 {loading &&
                   Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={`skel-${i}`} />)}
@@ -253,6 +258,8 @@ export function Browse() {
           )}
         </div>
       </div>
+      </div>
+      <ModDetailPanel mod={selectedMod} onClose={() => setSelectedMod(null)} />
     </div>
   )
 }

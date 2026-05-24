@@ -15,8 +15,12 @@ import {
   LoaderSpinIcon,
   ExternalLinkIcon,
   FilterIcon,
-  FolderIcon
+  FolderIcon,
+  GitBranchIcon,
+  ListIcon,
+  ZapIcon
 } from '../icons'
+import { DependencyGraph } from '../components/mods/DependencyGraph'
 import { useStore, selectActiveInstance, selectInstalledMods, selectConflicts } from '../store'
 import { useInstalledMods, useConflicts } from '../hooks/useElectron'
 import type { InstalledMod, Conflict } from '@shared/types'
@@ -133,8 +137,10 @@ export function Library() {
   const { reload } = useInstalledMods(activeInstance?.id ?? null)
   const { check: checkConflicts } = useConflicts(activeInstance?.id ?? null)
 
+  const [activeTab, setActiveTab] = useState<'mods' | 'graph'>('mods')
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<'all' | 'enabled' | 'disabled' | 'conflicting'>('all')
+  const [applyingToMc, setApplyingToMc] = useState(false)
   const [togglingId, setTogglingId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [importing, setImporting] = useState(false)
@@ -182,6 +188,19 @@ export function Library() {
     }
   }
 
+  const handleApplyToMinecraft = async () => {
+    if (!activeInstance) return
+    setApplyingToMc(true)
+    try {
+      const { copied, targetDir } = await window.api.applyToMinecraft(activeInstance.id)
+      toast.success(`Copied ${copied} mods to .minecraft — folder opened`)
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to apply mods')
+    } finally {
+      setApplyingToMc(false)
+    }
+  }
+
   const handleImport = async () => {
     if (!activeInstance) { toast.error('Select an instance first'); return }
     setImporting(true)
@@ -214,6 +233,43 @@ export function Library() {
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Toolbar */}
       <div className="shrink-0 border-b border-zinc-800/60 p-4">
+        {/* Tab switcher */}
+        <div className="flex items-center gap-1 mb-3">
+          <button
+            onClick={() => setActiveTab('mods')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              activeTab === 'mods'
+                ? 'bg-violet-600/20 text-violet-300 border border-violet-500/40'
+                : 'text-zinc-500 hover:text-zinc-300 border border-transparent'
+            }`}
+          >
+            <ListIcon size={12} />
+            Mods
+          </button>
+          <button
+            onClick={() => setActiveTab('graph')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              activeTab === 'graph'
+                ? 'bg-violet-600/20 text-violet-300 border border-violet-500/40'
+                : 'text-zinc-500 hover:text-zinc-300 border border-transparent'
+            }`}
+          >
+            <GitBranchIcon size={12} />
+            Dependencies
+          </button>
+          <div className="ml-auto">
+            <button
+              onClick={handleApplyToMinecraft}
+              disabled={applyingToMc || installedMods.length === 0}
+              className="btn-secondary py-1.5 px-3 text-xs"
+              title="Copy mods to .minecraft folder"
+            >
+              {applyingToMc ? <LoaderSpinIcon size={13} /> : <ZapIcon size={13} />}
+              Apply to .minecraft
+            </button>
+          </div>
+        </div>
+
         <div className="flex items-center gap-3 flex-wrap">
           <div className="relative flex-1 min-w-48">
             <SearchIcon size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none" />
@@ -292,8 +348,15 @@ export function Library() {
         </div>
       )}
 
+      {/* Dependency graph tab */}
+      {activeTab === 'graph' && (
+        <div className="flex-1 overflow-y-auto p-4">
+          <DependencyGraph mods={installedMods} />
+        </div>
+      )}
+
       {/* Mod list */}
-      <div className="flex-1 overflow-y-auto">
+      {activeTab === 'mods' && <div className="flex-1 overflow-y-auto">
         <div className="p-4">
           {filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -328,7 +391,7 @@ export function Library() {
             </div>
           )}
         </div>
-      </div>
+      </div>}
     </div>
   )
 }

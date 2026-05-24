@@ -47,6 +47,8 @@ const api = {
     ipcRenderer.invoke('mods:toggle', instanceId, fileId, enabled),
   importLocalMod: (instanceId: string): Promise<InstalledMod | null> =>
     ipcRenderer.invoke('mods:import-local', instanceId),
+  applyToMinecraft: (instanceId: string): Promise<{ copied: number; targetDir: string }> =>
+    ipcRenderer.invoke('mods:apply-to-minecraft', instanceId),
 
   // Search
   searchModrinth: (params: SearchParams): Promise<SearchResult> =>

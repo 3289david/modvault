@@ -14,7 +14,9 @@ import {
   ForgeLoaderIcon,
   NeoForgeLoaderIcon,
   QuiltLoaderIcon,
-  LoaderSpinIcon
+  LoaderSpinIcon,
+  GitBranchIcon,
+  ZapIcon
 } from '../../icons'
 import { useStore, selectActiveInstance, selectConflicts } from '../../store'
 import type { Instance, LoaderType } from '@shared/types'
@@ -23,6 +25,7 @@ const NAV_ITEMS = [
   { to: '/', label: 'Dashboard', icon: HomeIcon, end: true },
   { to: '/browse', label: 'Browse Mods', icon: SearchIcon },
   { to: '/library', label: 'My Mods', icon: PackageIcon },
+  { to: '/profiles', label: 'Profiles', icon: ZapIcon },
   { to: '/instances', label: 'Instances', icon: LayersIcon },
   { to: '/crash', label: 'Crash Analyzer', icon: TerminalIcon }
 ]

@@ -81,6 +81,28 @@ export function registerIpcHandlers(getWindow: () => BrowserWindow | null) {
 
   ipcMain.handle('analysis:crash', (_, content) => analyzeCrashLog(content))
 
+  // Apply instance mods to .minecraft folder
+  ipcMain.handle('mods:apply-to-minecraft', async (_, instanceId) => {
+    const instance = instanceManager.getById(instanceId)
+    if (!instance) throw new Error('Instance not found')
+    const settings = store.getSettings()
+    const targetDir = require('path').join(settings.minecraftPath, 'mods')
+    const fs = require('fs')
+
+    if (!fs.existsSync(targetDir)) fs.mkdirSync(targetDir, { recursive: true })
+
+    const srcFiles = fs.readdirSync(instance.modsFolder).filter((f: string) => f.endsWith('.jar'))
+    let copied = 0
+    for (const file of srcFiles) {
+      const src = require('path').join(instance.modsFolder, file)
+      const dest = require('path').join(targetDir, file)
+      fs.copyFileSync(src, dest)
+      copied++
+    }
+    shell.openPath(targetDir)
+    return { copied, targetDir }
+  })
+
   // System
   ipcMain.handle('system:open-external', (_, url) => shell.openExternal(url))
   ipcMain.handle('system:open-path', (_, p) => shell.openPath(p))
