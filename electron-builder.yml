@@ -1,0 +1,35 @@
+appId: app.modvault.desktop
+productName: ModVault
+copyright: Copyright © 2025 ModVault
+
+directories:
+  buildResources: resources
+  output: dist
+
+files:
+  - out/**/*
+  - "!**/{CHANGELOG.md,README.md,.gitignore}"
+  - "!**/node_modules/**"
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: resources/icon.ico
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  installerIcon: resources/icon.ico
+  uninstallerIcon: resources/icon.ico
+  installerHeader: resources/header.bmp
+  installerHeaderIcon: resources/icon.ico
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: ModVault
+
+publish:
+  provider: github
+  owner: danwoo
+  repo: modvault
